@@ -1,5 +1,6 @@
 package com.spotspread.websocket;
 
+import com.spotspread.event.InfluxDbMessagePublisher;
 import com.spotspread.service.OrderBookCacheService;
 import com.spotspread.websocket.handler.*;
 import jakarta.annotation.PostConstruct;
@@ -20,20 +21,22 @@ public class WebSocketRunner {
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketRunner.class);
     private final OrderBookCacheService cache;
+    private final InfluxDbMessagePublisher influxPublisher;
     private final List<ManagedWebSocket> clients = new ArrayList<>();
 
-    public WebSocketRunner(OrderBookCacheService cache) {
+    public WebSocketRunner(OrderBookCacheService cache, InfluxDbMessagePublisher influxPublisher) {
         this.cache = cache;
+        this.influxPublisher = influxPublisher;
     }
 
     @PostConstruct
     public void start() {
         try {
-            clients.add(new BinanceSpotDepthHandler(cache).createClient());
+            clients.add(new BinanceSpotDepthHandler(cache, influxPublisher).createClient());
             clients.add(new BitfinexSpotDepthHandler(cache).createClient());
             clients.add(new CoinExSpotDepthHandler(cache).createClient());
-            clients.add(new OkxSpotDepthHandler(cache).createClient());
-            clients.add(new BybitSpotDepthHandler(cache).createClient());
+            clients.add(new OkxSpotDepthHandler(cache, influxPublisher).createClient());
+            clients.add(new BybitSpotDepthHandler(cache, influxPublisher).createClient());
             clients.add(new GateSpotDepthHandler(cache).createClient());
             clients.add(new BitgetSpotDepthHandler(cache).createClient());
             clients.add(new LBankSpotDepthHandler(cache).createClient());

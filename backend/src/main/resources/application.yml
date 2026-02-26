@@ -16,3 +16,10 @@ server:
 
 cors:
   allowed-origins: http://localhost:8080,http://127.0.0.1:8080
+
+influxdb:
+  url: http://localhost:8086
+  token: ${INFLUXDB_TOKEN:oNMW7Fg5Myir9EXQoBN9KOfphszENQ-Zq6PcaG5-d-ohSFvP12Bgl_EEdCUsAxPMi3eGPQ6CpLB4mMDZ1u9cdg==}
+  org: ${INFLUXDB_ORG:spot-spread}
+  bucket: ${INFLUXDB_BUCKET:spot-spread}
+  enabled: ${INFLUXDB_ENABLED:true}

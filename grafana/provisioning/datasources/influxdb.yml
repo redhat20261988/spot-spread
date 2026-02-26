@@ -1,0 +1,17 @@
+apiVersion: 1
+
+# InfluxDB 数据源。Docker 运行时需设置 GF_DATASOURCES_DEFAULT_JSON_DATA_TOKEN 或使用环境变量。
+# Linux 宿主机访问：url 使用 http://172.17.0.1:8086 或启动 Grafana 时加 --add-host=host.docker.internal:host-gateway
+datasources:
+  - name: InfluxDB
+    uid: InfluxDB
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    jsonData:
+      version: Flux
+      organization: spot-spread
+      defaultBucket: spot-spread
+    secureJsonData:
+      token: oNMW7Fg5Myir9EXQoBN9KOfphszENQ-Zq6PcaG5-d-ohSFvP12Bgl_EEdCUsAxPMi3eGPQ6CpLB4mMDZ1u9cdg==
+    editable: true

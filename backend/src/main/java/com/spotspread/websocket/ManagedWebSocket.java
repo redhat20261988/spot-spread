@@ -91,11 +91,12 @@ public class ManagedWebSocket {
         connection = null;
         cancelHeartbeat();
         long durationMs = connectionOpenTimeMs > 0 ? System.currentTimeMillis() - connectionOpenTimeMs : 0;
+        long idleMs = lastMessageTimeMs.get() > 0 ? System.currentTimeMillis() - lastMessageTimeMs.get() : -1;
         connectionOpenTimeMs = 0;
         handler.onClosed(code, reason, remote);
         String codeHint = closeCodeHint(code);
-        log.warn("[{}] 连接关闭: code={} ({}) reason=\"{}\" remote={} 存活时长={}ms (将重连)",
-                exchangeName, code, codeHint, reason != null ? reason : "", remote, durationMs);
+        log.warn("[{}] 连接关闭: code={} ({}) reason=\"{}\" remote={} 存活时长={}ms 距上次收包={}ms (将重连)",
+                exchangeName, code, codeHint, reason != null ? reason : "", remote, durationMs, idleMs);
         if (running.get()) scheduleReconnect();
     }
 
@@ -148,7 +149,11 @@ public class ManagedWebSocket {
         heartbeatFuture = scheduler.scheduleAtFixedRate(() -> {
             if (running.get() && isOpen()) {
                 send(msg);
-                log.trace("[{}] 已发送心跳", exchangeName);
+                if ("lbank".equals(exchangeName)) {
+                    log.info("[lbank] 已发送心跳 msg={}", msg);
+                } else {
+                    log.trace("[{}] 已发送心跳", exchangeName);
+                }
             }
         }, interval, interval, TimeUnit.MILLISECONDS);
         log.debug("[{}] 心跳已启动 interval={}ms", exchangeName, interval);

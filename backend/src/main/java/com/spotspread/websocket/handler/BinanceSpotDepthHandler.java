@@ -2,6 +2,7 @@ package com.spotspread.websocket.handler;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.spotspread.event.InfluxDbMessagePublisher;
 import com.spotspread.service.OrderBookCacheService;
 import com.spotspread.websocket.ExchangeWebSocketHandler;
 import com.spotspread.websocket.ManagedWebSocket;
@@ -21,10 +22,12 @@ public class BinanceSpotDepthHandler implements ExchangeWebSocketHandler {
     private static final Logger log = LoggerFactory.getLogger(BinanceSpotDepthHandler.class);
 
     private final OrderBookCacheService cache;
+    private final InfluxDbMessagePublisher influxPublisher;
     private final ObjectMapper om = new ObjectMapper();
 
-    public BinanceSpotDepthHandler(OrderBookCacheService cache) {
+    public BinanceSpotDepthHandler(OrderBookCacheService cache, InfluxDbMessagePublisher influxPublisher) {
         this.cache = cache;
+        this.influxPublisher = influxPublisher;
     }
 
     public ManagedWebSocket createClient() {
@@ -63,6 +66,11 @@ public class BinanceSpotDepthHandler implements ExchangeWebSocketHandler {
             BigDecimal ask1 = parsePrice(askNode);
             if (bid1 != null && ask1 != null && bid1.compareTo(BigDecimal.ZERO) > 0 && ask1.compareTo(BigDecimal.ZERO) > 0) {
                 cache.updateBidAsk("binance", symbol, bid1, ask1);
+                long exchangeTs = parseTimestamp(root.path("E"));
+                if (exchangeTs > 0) {
+                    long latencyMs = System.currentTimeMillis() - exchangeTs;
+                    influxPublisher.publishPriceLatency("binance", symbol, latencyMs);
+                }
             }
         } catch (Exception e) {
             log.warn("Binance bookTicker parse error: {}", e.getMessage());
@@ -82,6 +90,15 @@ public class BinanceSpotDepthHandler implements ExchangeWebSocketHandler {
             return new BigDecimal(n.asText());
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    private long parseTimestamp(JsonNode n) {
+        if (n == null || n.isMissingNode() || n.isNull()) return 0;
+        try {
+            return n.asLong();
+        } catch (Exception e) {
+            return 0;
         }
     }
 }

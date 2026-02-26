@@ -2,6 +2,7 @@ package com.spotspread.task;
 
 import com.spotspread.config.ExchangeFeeRates;
 import com.spotspread.repository.SpreadArbitrageStatsRepository;
+import com.spotspread.event.InfluxDbMessagePublisher;
 import com.spotspread.service.OrderBookCacheService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,10 +29,13 @@ public class SpreadArbitrageStatsTask {
 
     private final OrderBookCacheService cache;
     private final SpreadArbitrageStatsRepository repository;
+    private final InfluxDbMessagePublisher influxPublisher;
 
-    public SpreadArbitrageStatsTask(OrderBookCacheService cache, SpreadArbitrageStatsRepository repository) {
+    public SpreadArbitrageStatsTask(OrderBookCacheService cache, SpreadArbitrageStatsRepository repository,
+                                    InfluxDbMessagePublisher influxPublisher) {
         this.cache = cache;
         this.repository = repository;
+        this.influxPublisher = influxPublisher;
     }
 
     @Scheduled(fixedRate = 1000, initialDelay = 15_000)
@@ -80,8 +84,11 @@ public class SpreadArbitrageStatsTask {
                     feeSell = takerSell; feeBuy = makerBuy;
                 }
                 BigDecimal profitMarginPct = rawPct.subtract(feeSell).subtract(feeBuy);
-                if (profitMarginPct.compareTo(THRESHOLD_PCT) < 0) continue;
                 BigDecimal spotSpread = aAsk.subtract(bBid);
+                influxPublisher.publishSpreadProfit(exSell, exBuy, symbol,
+                        spotSpread.doubleValue(), profitMarginPct.doubleValue(),
+                        bBid.doubleValue(), aAsk.doubleValue());
+                if (profitMarginPct.compareTo(THRESHOLD_PCT) < 0) continue;
                 out.add(new SpreadArbitrageStatsRepository.SnapshotRow(
                         symbol, exBuy, exSell, bBid, aAsk, spotSpread, profitMarginPct, feeBuy, feeSell
                 ));

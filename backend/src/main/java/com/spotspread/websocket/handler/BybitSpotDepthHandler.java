@@ -2,6 +2,7 @@ package com.spotspread.websocket.handler;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.spotspread.event.InfluxDbMessagePublisher;
 import com.spotspread.service.OrderBookCacheService;
 import com.spotspread.websocket.ExchangeWebSocketHandler;
 import com.spotspread.websocket.ManagedWebSocket;
@@ -23,10 +24,12 @@ public class BybitSpotDepthHandler implements ExchangeWebSocketHandler {
     private static final String[] SYMBOLS = {"BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "HYPEUSDT", "BNBUSDT"};
 
     private final OrderBookCacheService cache;
+    private final InfluxDbMessagePublisher influxPublisher;
     private final ObjectMapper om = new ObjectMapper();
 
-    public BybitSpotDepthHandler(OrderBookCacheService cache) {
+    public BybitSpotDepthHandler(OrderBookCacheService cache, InfluxDbMessagePublisher influxPublisher) {
         this.cache = cache;
+        this.influxPublisher = influxPublisher;
     }
 
     public ManagedWebSocket createClient() {
@@ -56,6 +59,11 @@ public class BybitSpotDepthHandler implements ExchangeWebSocketHandler {
             BigDecimal ask1 = parseBest(data.path("a"), 0);
             if (bid1 != null && ask1 != null) {
                 cache.updateBidAsk("bybit", symbol, bid1, ask1);
+                long exchangeTs = parseTimestamp(root.path("ts"));
+                if (exchangeTs > 0) {
+                    long latencyMs = System.currentTimeMillis() - exchangeTs;
+                    influxPublisher.publishPriceLatency("bybit", symbol, latencyMs);
+                }
             }
         } catch (Exception e) {
             log.warn("Bybit orderbook parse error: {}", e.getMessage());
@@ -73,5 +81,14 @@ public class BybitSpotDepthHandler implements ExchangeWebSocketHandler {
             }
         }
         return null;
+    }
+
+    private long parseTimestamp(JsonNode n) {
+        if (n == null || n.isMissingNode() || n.isNull()) return 0;
+        try {
+            return n.asLong();
+        } catch (Exception e) {
+            return 0;
+        }
     }
 }

@@ -63,8 +63,13 @@ public class LBankSpotDepthHandler implements ExchangeWebSocketHandler {
     public void onMessage(String message) {
         try {
             JsonNode root = om.readTree(message);
+            String action = root.path("action").asText("");
             String pair = root.path("pair").asText("").toLowerCase();
             String symbol = PAIR_TO_SYMBOL.get(pair);
+            if ("pong".equals(action) || "ping".equals(action)) {
+                log.info("[LBank] 收到心跳响应 action={} raw={}", action, message.length() > 100 ? message.substring(0, 100) + "..." : message);
+                return;
+            }
             if (symbol == null) return;
             JsonNode depth = root.path("depth");
             if (depth.isMissingNode()) return;
@@ -74,7 +79,7 @@ public class LBankSpotDepthHandler implements ExchangeWebSocketHandler {
                 cache.updateBidAsk("lbank", symbol, bid1, ask1);
             }
         } catch (Exception e) {
-            log.warn("LBank depth parse error: {}", e.getMessage());
+            log.warn("[LBank] depth 解析失败 msg={} err={}", message.length() > 150 ? message.substring(0, 150) + "..." : message, e.getMessage());
         }
     }
 
