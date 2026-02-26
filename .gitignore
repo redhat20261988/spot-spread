@@ -1,0 +1,14 @@
+backend/logs
+backend/target
+node_modules
+frontend/dist
+backend/.backend.pid
+frontend/.frontend.pid
+frontend/.frontend.log
+.env
+.env.local
+*.log
+.DS_Store
+.idea/
+*.iml
+.vscode/
