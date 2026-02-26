@@ -28,8 +28,8 @@ public class BitfinexSpotDepthHandler implements ExchangeWebSocketHandler {
     private final Map<String, BigDecimal[]> symbolBook = new ConcurrentHashMap<>();
 
     private static final Map<String, String> SYMBOL_MAP = Map.of(
-            "tBTCUSD", "BTCUSDT", "tETHUSD", "ETHUSDT", "tSOLUSD", "SOLUSDT",
-            "tXRPUSD", "XRPUSDT", "tHYPEUSD", "HYPEUSDT", "tBNBUSD", "BNBUSDT"
+            "tBTCUST", "BTCUSDT", "tETHUST", "ETHUSDT", "tSOLUST", "SOLUSDT",
+            "tXRPUST", "XRPUSDT", "tHYPE:UST", "HYPEUSDT"
     );
 
     public BitfinexSpotDepthHandler(OrderBookCacheService cache) {
@@ -78,10 +78,16 @@ public class BitfinexSpotDepthHandler implements ExchangeWebSocketHandler {
             if (symbol == null) return;
             BigDecimal[] book = symbolBook.computeIfAbsent(symbol, k -> new BigDecimal[]{null, null});
             JsonNode data = root.get(1);
-            if (data.isArray()) {
+            // Bitfinex book 更新格式：扁平数组 [chanId, price, count, amount]，amount>0=bid，amount<0=ask
+            if (root.size() == 4 && data.isNumber()) {
+                double price = data.asDouble();
+                double amount = root.get(3).asDouble();
+                if (amount > 0) book[0] = BigDecimal.valueOf(price);
+                else if (amount < 0) book[1] = BigDecimal.valueOf(price);
+            } else if (data.isArray()) {
                 JsonNode first = data.get(0);
                 if (first != null && first.isNumber()) {
-                    double amount = root.size() > 3 ? root.get(3).asDouble() : 0;
+                    double amount = data.size() > 2 ? data.get(2).asDouble() : 0;
                     BigDecimal price = BigDecimal.valueOf(first.asDouble());
                     if (amount > 0) book[0] = price; else if (amount < 0) book[1] = price;
                 } else {
