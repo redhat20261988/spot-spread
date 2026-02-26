@@ -40,12 +40,24 @@ public class BitfinexSpotDepthHandler implements ExchangeWebSocketHandler {
         return new ManagedWebSocket("bitfinex", URI.create(WS_URL), this);
     }
 
+    private static final String PING_MSG = "{\"event\":\"ping\"}";
+
     @Override
     public void onConnected(ManagedWebSocket client) {
         log.info("Bitfinex spot depth WebSocket connected");
         for (String sym : SYMBOL_MAP.keySet()) {
             client.send("{\"event\":\"subscribe\",\"channel\":\"book\",\"symbol\":\"" + sym + "\",\"len\":\"1\"}");
         }
+    }
+
+    @Override
+    public String getHeartbeatMessage() {
+        return PING_MSG;
+    }
+
+    @Override
+    public long getHeartbeatIntervalMs() {
+        return 30_000;
     }
 
     @Override

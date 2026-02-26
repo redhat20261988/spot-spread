@@ -22,8 +22,8 @@ JAR_FILE="$BACKEND_DIR/target/spot-spread-*.jar"
 # 主类
 MAIN_CLASS="com.spotspread.SpotSpreadApplication"
 # JVM参数
-# 堆内存配置
-JVM_OPTS="-Xms512m -Xmx512m"
+# 堆内存配置（总内存3G，最小和最大均设为3G，避免堆动态调整）
+JVM_OPTS="-Xms3g -Xmx3g"
 # G1垃圾回收器配置
 JVM_OPTS="$JVM_OPTS -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
 # Metaspace配置

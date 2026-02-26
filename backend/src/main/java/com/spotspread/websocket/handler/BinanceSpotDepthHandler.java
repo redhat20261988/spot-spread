@@ -12,11 +12,12 @@ import java.math.BigDecimal;
 import java.net.URI;
 
 /**
- * Binance 现货深度 depth5，提取买一/卖一。
+ * Binance 现货买一/卖一，使用 @bookTicker 流。
+ * 采用 /ws/ 原始流 + SUBSCRIBE，消息格式为 { "s":"BTCUSDT", "b":"...", "a":"..." }
  */
 public class BinanceSpotDepthHandler implements ExchangeWebSocketHandler {
 
-    private static final String WS_URL = "wss://stream.binance.com:9443/stream?streams=btcusdt@depth5/ethusdt@depth5/solusdt@depth5/xrpusdt@depth5/hypeusdt@depth5/bnbusdt@depth5";
+    private static final String WS_URL = "wss://stream.binance.com:443/ws";
     private static final Logger log = LoggerFactory.getLogger(BinanceSpotDepthHandler.class);
 
     private final OrderBookCacheService cache;
@@ -33,32 +34,54 @@ public class BinanceSpotDepthHandler implements ExchangeWebSocketHandler {
     @Override
     public void onConnected(ManagedWebSocket client) {
         log.info("Binance spot depth WebSocket connected");
+        String sub = "{\"method\":\"SUBSCRIBE\",\"params\":[\"btcusdt@bookTicker\",\"ethusdt@bookTicker\",\"solusdt@bookTicker\",\"xrpusdt@bookTicker\",\"hypeusdt@bookTicker\",\"bnbusdt@bookTicker\"],\"id\":1}";
+        client.send(sub);
+    }
+
+    /** Binance 使用 RFC 6455 协议层 ping/pong，超时 30 秒无消息则库自动发 ping */
+    @Override
+    public int getConnectionLostTimeoutSeconds() {
+        return 30;
     }
 
     @Override
     public void onMessage(String message) {
         try {
             JsonNode root = om.readTree(message);
-            JsonNode stream = root.get("stream");
-            if (stream == null) return;
-            String streamName = stream.asText();
-            String symbol = streamName.contains("@") ? streamName.substring(0, streamName.indexOf("@")).toUpperCase() + "USDT" : null;
-            if (symbol == null) return;
+            // 忽略订阅确认 { "result": null, "id": 1 }
+            if (root.has("result")) return;
+            // 原始流格式: { "s":"BTCUSDT", "b":"...", "a":"..." } 在根节点
+            JsonNode sNode = root.path("s");
+            if (sNode.isMissingNode() || sNode.isNull()) return;
+            String symbol = sNode.asText();
+            if (symbol.isEmpty()) return;
+            // 兼容 combined 格式 data.b / data.a
             JsonNode data = root.path("data");
-            BigDecimal bid1 = parseBest(data.path("bids"), 0);
-            BigDecimal ask1 = parseBest(data.path("asks"), 0);
-            if (bid1 != null && ask1 != null) cache.updateBidAsk("binance", symbol, bid1, ask1);
+            JsonNode bidNode = data.isMissingNode() ? root.path("b") : data.path("b");
+            JsonNode askNode = data.isMissingNode() ? root.path("a") : data.path("a");
+            BigDecimal bid1 = parsePrice(bidNode);
+            BigDecimal ask1 = parsePrice(askNode);
+            if (bid1 != null && ask1 != null && bid1.compareTo(BigDecimal.ZERO) > 0 && ask1.compareTo(BigDecimal.ZERO) > 0) {
+                cache.updateBidAsk("binance", symbol, bid1, ask1);
+            }
         } catch (Exception e) {
-            log.warn("Binance spot depth parse error: {}", e.getMessage());
+            log.warn("Binance bookTicker parse error: {}", e.getMessage());
         }
     }
 
-    private BigDecimal parseBest(JsonNode arr, int idx) {
-        if (!arr.isArray() || arr.size() <= idx) return null;
-        JsonNode level = arr.get(idx);
-        if (!level.isArray() || level.size() < 1) return null;
+    @Override
+    public void onBinaryMessage(byte[] data) {
+        if (data != null && data.length > 0) {
+            onMessage(new String(data, java.nio.charset.StandardCharsets.UTF_8));
+        }
+    }
+
+    private BigDecimal parsePrice(JsonNode n) {
+        if (n == null || n.isMissingNode() || n.isNull()) return null;
         try {
-            return new BigDecimal(level.get(0).asText());
-        } catch (Exception e) { return null; }
+            return new BigDecimal(n.asText());
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

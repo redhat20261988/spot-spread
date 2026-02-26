@@ -1,0 +1,80 @@
+package com.spotspread.websocket.handler;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.spotspread.service.OrderBookCacheService;
+import com.spotspread.websocket.ExchangeWebSocketHandler;
+import com.spotspread.websocket.ManagedWebSocket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.math.BigDecimal;
+import java.net.URI;
+import java.util.Map;
+
+/**
+ * LBank 现货深度 depth，提取买一/卖一。
+ * wss://www.lbkex.net/ws/V2/ 公开 depth 订阅
+ */
+public class LBankSpotDepthHandler implements ExchangeWebSocketHandler {
+
+    private static final String WS_URL = "wss://www.lbkex.net/ws/V2/";
+    private static final Logger log = LoggerFactory.getLogger(LBankSpotDepthHandler.class);
+
+    private static final Map<String, String> PAIR_TO_SYMBOL = Map.of(
+            "btc_usdt", "BTCUSDT", "eth_usdt", "ETHUSDT", "sol_usdt", "SOLUSDT",
+            "xrp_usdt", "XRPUSDT", "hype_usdt", "HYPEUSDT", "bnb_usdt", "BNBUSDT"
+    );
+
+    private final OrderBookCacheService cache;
+    private final ObjectMapper om = new ObjectMapper();
+
+    public LBankSpotDepthHandler(OrderBookCacheService cache) {
+        this.cache = cache;
+    }
+
+    public ManagedWebSocket createClient() {
+        return new ManagedWebSocket("lbank", URI.create(WS_URL), this);
+    }
+
+    @Override
+    public void onConnected(ManagedWebSocket client) {
+        log.info("LBank spot depth WebSocket connected");
+        for (String pair : PAIR_TO_SYMBOL.keySet()) {
+            String sub = "{\"action\":\"subscribe\",\"subscribe\":\"depth\",\"depth\":\"5\",\"pair\":\"" + pair + "\"}";
+            client.send(sub);
+        }
+    }
+
+    @Override
+    public void onMessage(String message) {
+        try {
+            JsonNode root = om.readTree(message);
+            String pair = root.path("pair").asText("").toLowerCase();
+            String symbol = PAIR_TO_SYMBOL.get(pair);
+            if (symbol == null) return;
+            JsonNode depth = root.path("depth");
+            if (depth.isMissingNode()) return;
+            BigDecimal bid1 = parseBest(depth.path("bids"), 0);
+            BigDecimal ask1 = parseBest(depth.path("asks"), 0);
+            if (bid1 != null && ask1 != null) {
+                cache.updateBidAsk("lbank", symbol, bid1, ask1);
+            }
+        } catch (Exception e) {
+            log.warn("LBank depth parse error: {}", e.getMessage());
+        }
+    }
+
+    private BigDecimal parseBest(JsonNode arr, int idx) {
+        if (!arr.isArray() || arr.size() <= idx) return null;
+        JsonNode level = arr.get(idx);
+        if (level.isArray() && level.size() >= 1) {
+            try {
+                return new BigDecimal(level.get(0).asText());
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return null;
+    }
+}

@@ -18,7 +18,9 @@ public class SpreadArbitrageStatsTask {
 
     private static final Logger log = LoggerFactory.getLogger(SpreadArbitrageStatsTask.class);
     private static final List<String> SYMBOLS = List.of("BTC", "ETH", "SOL", "XRP", "HYPE", "BNB");
-    private static final List<String> EXCHANGES = List.of("binance", "bitfinex", "coinex");
+    private static final List<String> EXCHANGES = List.of(
+            "binance", "bitfinex", "coinex", "okx", "bybit", "gateio", "bitget", "lbank", "whitebit"
+    );
     private static final BigDecimal THRESHOLD_PCT = new BigDecimal("0.1");
 
     private final OrderBookCacheService cache;

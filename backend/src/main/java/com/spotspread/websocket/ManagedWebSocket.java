@@ -33,6 +33,7 @@ public class ManagedWebSocket {
     private volatile ScheduledFuture<?> heartbeatFuture;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final AtomicLong lastMessageTimeMs = new AtomicLong(0);
+    private volatile long connectionOpenTimeMs = 0;
 
     public ManagedWebSocket(String exchangeName, URI uri, ExchangeWebSocketHandler handler) {
         this.exchangeName = exchangeName;
@@ -72,19 +73,44 @@ public class ManagedWebSocket {
     }
 
     public String getExchangeName() { return exchangeName; }
+    ExchangeWebSocketHandler getHandler() { return handler; }
 
     void onConnectionOpened(WebSocketConnection conn) {
+        connectionOpenTimeMs = System.currentTimeMillis();
         nextReconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
+        int lostTimeout = handler.getConnectionLostTimeoutSeconds();
+        if (lostTimeout > 0) {
+            conn.setConnectionLostTimeout(lostTimeout);
+        }
         handler.onConnected(this);
         startHeartbeat();
+        log.debug("[{}] 连接已建立，connectionLostTimeout={}s, heartbeat={}ms", exchangeName,
+                lostTimeout, handler.getHeartbeatMessage() != null ? handler.getHeartbeatIntervalMs() : 0);
     }
 
-    void onConnectionClosed(WebSocketConnection conn, int code, String reason) {
+    void onConnectionClosed(WebSocketConnection conn, int code, String reason, boolean remote) {
         connection = null;
         cancelHeartbeat();
-        handler.onClosed(code, reason);
-        log.info("[{}] 连接关闭: {} - {} (将重连)", exchangeName, code, reason);
+        long durationMs = connectionOpenTimeMs > 0 ? System.currentTimeMillis() - connectionOpenTimeMs : 0;
+        connectionOpenTimeMs = 0;
+        handler.onClosed(code, reason, remote);
+        String codeHint = closeCodeHint(code);
+        log.warn("[{}] 连接关闭: code={} ({}) reason=\"{}\" remote={} 存活时长={}ms (将重连)",
+                exchangeName, code, codeHint, reason != null ? reason : "", remote, durationMs);
         if (running.get()) scheduleReconnect();
+    }
+
+    private static String closeCodeHint(int code) {
+        return switch (code) {
+            case 1000 -> "正常关闭";
+            case 1001 -> "端点离开";
+            case 1002 -> "协议错误";
+            case 1003 -> "不支持的数据类型";
+            case 1006 -> "异常关闭(无关闭帧,可能网络/服务端重置)";
+            case 1011 -> "服务器错误";
+            case 1015 -> "TLS握手失败";
+            default -> "未知";
+        };
     }
 
     void onMessage(String message) {
@@ -121,8 +147,12 @@ public class ManagedWebSocket {
         long interval = handler.getHeartbeatIntervalMs();
         cancelHeartbeat();
         heartbeatFuture = scheduler.scheduleAtFixedRate(() -> {
-            if (running.get() && isOpen()) send(msg);
+            if (running.get() && isOpen()) {
+                send(msg);
+                log.trace("[{}] 已发送心跳", exchangeName);
+            }
         }, interval, interval, TimeUnit.MILLISECONDS);
+        log.debug("[{}] 心跳已启动 interval={}ms", exchangeName, interval);
     }
 
     private void cancelHeartbeat() {
@@ -147,12 +177,16 @@ public class ManagedWebSocket {
         @Override
         public void onMessage(java.nio.ByteBuffer bytes) {
             try {
-                String s = new String(bytes.array(), bytes.position(), bytes.remaining(), java.nio.charset.StandardCharsets.UTF_8);
-                manager.onMessage(s);
-            } catch (Exception ignored) {}
+                byte[] arr = new byte[bytes.remaining()];
+                bytes.get(arr);
+                manager.getHandler().onBinaryMessage(arr);
+            } catch (Exception e) {
+                org.slf4j.LoggerFactory.getLogger(ManagedWebSocket.class)
+                        .warn("[{}] 二进制消息处理异常: {}", manager.getExchangeName(), e.getMessage());
+            }
         }
         @Override
-        public void onClose(int code, String reason, boolean remote) { manager.onConnectionClosed(this, code, reason); }
+        public void onClose(int code, String reason, boolean remote) { manager.onConnectionClosed(this, code, reason, remote); }
         @Override
         public void onError(Exception ex) { manager.onError(ex); }
     }

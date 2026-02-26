@@ -1,9 +1,7 @@
 package com.spotspread.websocket;
 
 import com.spotspread.service.OrderBookCacheService;
-import com.spotspread.websocket.handler.BinanceSpotDepthHandler;
-import com.spotspread.websocket.handler.BitfinexSpotDepthHandler;
-import com.spotspread.websocket.handler.CoinExSpotDepthHandler;
+import com.spotspread.websocket.handler.*;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
@@ -13,6 +11,10 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 启动所有支持现货深度 WebSocket 的交易所连接。
+ * 参考 experiment 项目交易所列表，不支持 spot order book WebSocket 的交易所不接入。
+ */
 @Component
 public class WebSocketRunner {
 
@@ -30,6 +32,12 @@ public class WebSocketRunner {
             clients.add(new BinanceSpotDepthHandler(cache).createClient());
             clients.add(new BitfinexSpotDepthHandler(cache).createClient());
             clients.add(new CoinExSpotDepthHandler(cache).createClient());
+            clients.add(new OkxSpotDepthHandler(cache).createClient());
+            clients.add(new BybitSpotDepthHandler(cache).createClient());
+            clients.add(new GateSpotDepthHandler(cache).createClient());
+            clients.add(new BitgetSpotDepthHandler(cache).createClient());
+            clients.add(new LBankSpotDepthHandler(cache).createClient());
+            clients.add(new WhiteBitSpotDepthHandler(cache).createClient());
             for (ManagedWebSocket client : clients) client.connect();
             log.info("Started {} spot depth WebSocket connections", clients.size());
         } catch (Exception e) {

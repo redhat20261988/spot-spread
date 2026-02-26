@@ -91,6 +91,13 @@
         <appender-ref ref="ERROR_FILE"/>
     </logger>
     
+    <!-- 排查 WebSocket 重连时可临时改为 DEBUG -->
+    <logger name="com.spotspread.websocket" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="INFO_FILE"/>
+        <appender-ref ref="WARN_FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </logger>
     <logger name="org.java_websocket" level="WARN" additivity="false">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="INFO_FILE"/>
