@@ -37,6 +37,19 @@ public class LBankSpotDepthHandler implements ExchangeWebSocketHandler {
         return new ManagedWebSocket("lbank", URI.create(WS_URL), this);
     }
 
+    /** LBank 服务端约 6 分钟空闲会主动断开，需定期发送 ping 保活 */
+    private static final String PING_MSG = "ping";
+
+    @Override
+    public String getHeartbeatMessage() {
+        return PING_MSG;
+    }
+
+    @Override
+    public long getHeartbeatIntervalMs() {
+        return 30_000;
+    }
+
     @Override
     public void onConnected(ManagedWebSocket client) {
         log.info("LBank spot depth WebSocket connected");

@@ -22,7 +22,9 @@ public class SpreadArbitrageStatsTask {
             "binance", "bitfinex", "coinex", "okx", "bybit", "gateio", "bitget", "lbank", "whitebit",
             "bitunix", "cryptocom"
     );
-    private static final BigDecimal THRESHOLD_PCT = new BigDecimal("0.1");
+    private static final BigDecimal THRESHOLD_PCT = new BigDecimal("0.5");
+    /** 价格过期阈值(ms)，超过则弃用，避免过时价格导致跨所套利误判 */
+    private static final long STALE_MS = 500;
 
     private final OrderBookCacheService cache;
     private final SpreadArbitrageStatsRepository repository;
@@ -50,6 +52,7 @@ public class SpreadArbitrageStatsTask {
 
     private void collectSnapshots(String symbol, List<SpreadArbitrageStatsRepository.SnapshotRow> out) {
         String sym = symbol + "USDT";
+        long now = System.currentTimeMillis();
         for (int i = 0; i < EXCHANGES.size(); i++) {
             for (int j = 0; j < EXCHANGES.size(); j++) {
                 if (i == j) continue;
@@ -58,6 +61,7 @@ public class SpreadArbitrageStatsTask {
                 var sellBook = cache.getBidAsk(exSell, sym);
                 var buyBook = cache.getBidAsk(exBuy, sym);
                 if (sellBook == null || buyBook == null) continue;
+                if (now - sellBook.updatedAt() > STALE_MS || now - buyBook.updatedAt() > STALE_MS) continue;
                 BigDecimal aAsk = sellBook.ask1();
                 BigDecimal bBid = buyBook.bid1();
                 if (aAsk == null || bBid == null || bBid.compareTo(BigDecimal.ZERO) <= 0) continue;

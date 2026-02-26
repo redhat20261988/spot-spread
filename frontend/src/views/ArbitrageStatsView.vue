@@ -62,6 +62,13 @@ function calcProfit(buyEx, sellEx, dataMap) {
   return { profitMarginPct, feeSell, feeBuy, useTakerSell, useTakerBuy }
 }
 
+/** 历史套利统计按当前选择的币种筛选 */
+const filteredPairStats = computed(() => {
+  const sym = symbol.value
+  if (!sym) return pairStats.value
+  return pairStats.value.filter(row => row.symbol === sym || row.symbol === sym + 'USDT')
+})
+
 /** 为每行计算最佳配对所及手续费显示信息 */
 const exchangeTableRows = computed(() => {
   const list = exchangePrices.value
@@ -228,14 +235,14 @@ onUnmounted(() => {
     <!-- 历史套利统计 -->
     <section class="section" aria-label="历史套利统计">
       <h2>历史套利组合统计</h2>
-      <p class="summary">按平均利润率、次数降序展示各交易所组合（套利利润率 &ge; 0.1% 时入库）</p>
+      <p class="summary">按平均利润率、次数降序展示各交易所组合（套利利润率 &ge; 0.5% 时入库）</p>
       <div v-if="error" class="error">{{ error }}</div>
       <div v-if="loading && pairStats.length === 0" class="loading">加载中...</div>
       <div v-else class="table-wrap table-wrap-stats">
         <table class="data-table">
           <thead>
             <tr>
-              <th>币种</th>
+              <th>币种（{{ symbol }}）</th>
               <th>买入交易所</th>
               <th>买入手续费</th>
               <th>卖出交易所</th>
@@ -245,7 +252,7 @@ onUnmounted(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in pairStats" :key="`${row.symbol}-${row.exchangeBuy}-${row.exchangeSell}`">
+            <tr v-for="row in filteredPairStats" :key="`${row.symbol}-${row.exchangeBuy}-${row.exchangeSell}`">
               <td>{{ row.symbol }}</td>
               <td>{{ exchangeLabel(row.exchangeBuy) }}</td>
               <td>{{ formatPct(row.spotFeeBuyPct) }}</td>
@@ -258,6 +265,7 @@ onUnmounted(() => {
         </table>
       </div>
       <p v-if="!loading && pairStats.length === 0" class="empty">暂无数据（约 15 秒后开始写入，需运行一段时间后才有统计）</p>
+      <p v-else-if="!loading && filteredPairStats.length === 0 && pairStats.length > 0" class="empty">当前币种 {{ symbol }} 暂无历史套利记录</p>
     </section>
   </div>
 </template>

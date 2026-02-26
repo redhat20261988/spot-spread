@@ -79,9 +79,8 @@ public class ManagedWebSocket {
         connectionOpenTimeMs = System.currentTimeMillis();
         nextReconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
         int lostTimeout = handler.getConnectionLostTimeoutSeconds();
-        if (lostTimeout > 0) {
-            conn.setConnectionLostTimeout(lostTimeout);
-        }
+        // 必须显式设置，否则 Java-WebSocket 默认约 60 秒 ping/pong 检测；服务端不响应 WS 层 pong 时会被误判断连
+        conn.setConnectionLostTimeout(lostTimeout);
         handler.onConnected(this);
         startHeartbeat();
         log.debug("[{}] 连接已建立，connectionLostTimeout={}s, heartbeat={}ms", exchangeName,

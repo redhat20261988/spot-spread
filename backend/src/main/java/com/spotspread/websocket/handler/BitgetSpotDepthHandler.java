@@ -69,11 +69,13 @@ public class BitgetSpotDepthHandler implements ExchangeWebSocketHandler {
             if (!"books5".equals(channel)) return;
             JsonNode data = root.path("data");
             if (!data.isArray() || data.isEmpty()) return;
+            String instIdFromArg = arg.path("instId").asText("");
             for (JsonNode item : data) {
-                String instId = item.path("instId").asText("");
+                String instId = item.has("instId") ? item.path("instId").asText("") : instIdFromArg;
+                if (instId.isEmpty()) instId = instIdFromArg;
                 BigDecimal bid1 = parseBest(item.path("bids"), 0);
                 BigDecimal ask1 = parseBest(item.path("asks"), 0);
-                if (bid1 != null && ask1 != null) {
+                if (bid1 != null && ask1 != null && !instId.isEmpty()) {
                     cache.updateBidAsk("bitget", instId, bid1, ask1);
                 }
             }

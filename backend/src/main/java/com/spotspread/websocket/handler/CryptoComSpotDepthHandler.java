@@ -50,10 +50,11 @@ public class CryptoComSpotDepthHandler implements ExchangeWebSocketHandler {
             try {
                 Thread.sleep(1000);
                 if (clientRef != null && clientRef.isOpen()) {
+                    // Crypto.com 只支持 depth 10 或 50，不支持 1
                     StringBuilder channels = new StringBuilder("[");
                     for (int i = 0; i < INSTRUMENTS.length; i++) {
                         if (i > 0) channels.append(",");
-                        channels.append("\"book.").append(INSTRUMENTS[i]).append(".1\"");
+                        channels.append("\"book.").append(INSTRUMENTS[i]).append(".10\"");
                     }
                     channels.append("]");
                     clientRef.send("{\"id\":1,\"method\":\"subscribe\",\"params\":{\"channels\":" + channels + "},\"nonce\":" + System.currentTimeMillis() + "}");
@@ -80,19 +81,24 @@ public class CryptoComSpotDepthHandler implements ExchangeWebSocketHandler {
                 }
                 return;
             }
-            JsonNode result = root.path("result");
-            if (result.isMissingNode()) return;
-            JsonNode data = result.path("data");
+            // 订阅响应与增量更新在 result 中；部分推送可能在 params 中
+            JsonNode payload = root.path("result");
+            if (payload.isMissingNode()) {
+                payload = root.path("params");
+            }
+            if (payload.isMissingNode()) return;
+            JsonNode data = payload.path("data");
             if (!data.isArray() || data.isEmpty()) return;
-            String instrumentName = result.path("instrument_name").asText("");
+            String instrumentName = payload.path("instrument_name").asText("");
             String symbol = INSTRUMENT_TO_SYMBOL.get(instrumentName);
             if (symbol == null) return;
             JsonNode item = data.get(0);
             JsonNode bids = item.path("bids");
             JsonNode asks = item.path("asks");
             if (bids.isMissingNode() && item.has("update")) {
-                bids = item.path("update").path("bids");
-                asks = item.path("update").path("asks");
+                JsonNode upd = item.path("update");
+                bids = upd.path("bids");
+                asks = upd.path("asks");
             }
             BigDecimal bid1 = parseBest(bids, 0);
             BigDecimal ask1 = parseBest(asks, 0);

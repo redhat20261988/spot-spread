@@ -22,6 +22,7 @@ public final class ExchangeFeeRates {
             Map.entry("bingx", new BigDecimal("0.1")),
             Map.entry("coinw", new BigDecimal("0.1")),
             Map.entry("bitunix", new BigDecimal("0.1")),
+            Map.entry("cryptocom", new BigDecimal("0.4")),
             Map.entry("hyperliquid", new BigDecimal("0.04")),
             Map.entry("dydx", new BigDecimal("0.01"))
     );
@@ -40,6 +41,7 @@ public final class ExchangeFeeRates {
             Map.entry("bingx", new BigDecimal("0.1")),
             Map.entry("coinw", new BigDecimal("0.1")),
             Map.entry("bitunix", new BigDecimal("0.1")),
+            Map.entry("cryptocom", new BigDecimal("0.4")),
             Map.entry("hyperliquid", new BigDecimal("0.07")),
             Map.entry("dydx", new BigDecimal("0.05"))
     );
