@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.net.URI;
+import java.util.Set;
 
 /**
  * WhiteBIT 现货 bookTicker，提取买一/卖一。
@@ -20,7 +21,7 @@ public class WhiteBitSpotDepthHandler implements ExchangeWebSocketHandler {
     private static final String WS_URL = "wss://api.whitebit.com/ws";
     private static final Logger log = LoggerFactory.getLogger(WhiteBitSpotDepthHandler.class);
 
-    private static final String[] MARKETS = {"BTC_USDT", "ETH_USDT", "SOL_USDT", "XRP_USDT", "HYPE_USDT", "BNB_USDT"};
+    private static final Set<String> VALID_SYMBOLS = Set.of("BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "HYPEUSDT", "BNBUSDT");
 
     private final OrderBookCacheService cache;
     private final ObjectMapper om = new ObjectMapper();
@@ -36,13 +37,7 @@ public class WhiteBitSpotDepthHandler implements ExchangeWebSocketHandler {
     @Override
     public void onConnected(ManagedWebSocket client) {
         log.info("WhiteBIT spot depth WebSocket connected");
-        StringBuilder params = new StringBuilder("[");
-        for (int i = 0; i < MARKETS.length; i++) {
-            if (i > 0) params.append(",");
-            params.append("\"").append(MARKETS[i]).append("\"");
-        }
-        params.append("]");
-        client.send("{\"id\":1,\"method\":\"bookTicker_subscribe\",\"params\":" + params + "}");
+        client.send("{\"id\":1,\"method\":\"bookTicker_subscribe\",\"params\":[]}");
     }
 
     @Override
@@ -66,6 +61,7 @@ public class WhiteBitSpotDepthHandler implements ExchangeWebSocketHandler {
             if (!data.isArray() || data.size() < 8) return;
             String market = data.get(2).asText("");
             String symbol = market.replace("_", "");
+            if (!VALID_SYMBOLS.contains(symbol)) return;
             BigDecimal bid1 = parseDecimal(data.get(4));
             BigDecimal ask1 = parseDecimal(data.get(6));
             if (bid1 != null && ask1 != null) {

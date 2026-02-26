@@ -17,9 +17,7 @@ const symbolOptions = ['BTC', 'ETH', 'SOL', 'XRP', 'HYPE', 'BNB']
 const exchangeLabels = {
   binance: 'Binance', bitfinex: 'Bitfinex', coinex: 'CoinEx',
   okx: 'OKX', bybit: 'Bybit', gateio: 'Gate.io', bitget: 'Bitget',
-  lbank: 'LBank', whitebit: 'WhiteBIT',
-  mexc: 'MEXC', bingx: 'BingX', coinw: 'CoinW', bitunix: 'Bitunix',
-  hyperliquid: 'Hyperliquid', dydx: 'dYdX'
+  lbank: 'LBank', whitebit: 'WhiteBIT', bitunix: 'Bitunix', cryptocom: 'Crypto.com'
 }
 
 function exchangeLabel(ex) {

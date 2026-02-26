@@ -12,41 +12,41 @@ import java.math.BigDecimal;
 import java.net.URI;
 
 /**
- * Bitget 现货 books5，提取买一/卖一。
- * wss://ws.bitget.com/v2/ws/public
+ * Bitunix 现货深度 depth_book1，提取买一/卖一。
+ * wss://fapi.bitunix.com/public/
  */
-public class BitgetSpotDepthHandler implements ExchangeWebSocketHandler {
+public class BitunixSpotDepthHandler implements ExchangeWebSocketHandler {
 
-    private static final String WS_URL = "wss://ws.bitget.com/v2/ws/public";
-    private static final Logger log = LoggerFactory.getLogger(BitgetSpotDepthHandler.class);
+    private static final String WS_URL = "wss://fapi.bitunix.com/public/";
+    private static final Logger log = LoggerFactory.getLogger(BitunixSpotDepthHandler.class);
 
     private static final String[] SYMBOLS = {"BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "HYPEUSDT", "BNBUSDT"};
 
     private final OrderBookCacheService cache;
     private final ObjectMapper om = new ObjectMapper();
 
-    public BitgetSpotDepthHandler(OrderBookCacheService cache) {
+    public BitunixSpotDepthHandler(OrderBookCacheService cache) {
         this.cache = cache;
     }
 
     public ManagedWebSocket createClient() {
-        return new ManagedWebSocket("bitget", URI.create(WS_URL), this);
+        return new ManagedWebSocket("bitunix", URI.create(WS_URL), this);
     }
 
     @Override
     public void onConnected(ManagedWebSocket client) {
-        log.info("Bitget spot depth WebSocket connected");
+        log.info("Bitunix spot depth WebSocket connected");
         StringBuilder args = new StringBuilder();
         for (int i = 0; i < SYMBOLS.length; i++) {
             if (i > 0) args.append(",");
-            args.append("{\"instType\":\"SPOT\",\"channel\":\"books5\",\"instId\":\"").append(SYMBOLS[i]).append("\"}");
+            args.append("{\"symbol\":\"").append(SYMBOLS[i]).append("\",\"ch\":\"depth_book1\"}");
         }
         client.send("{\"op\":\"subscribe\",\"args\":[" + args + "]}");
     }
 
     @Override
     public String getHeartbeatMessage() {
-        return "ping";
+        return "{\"op\":\"ping\",\"ping\":" + (System.currentTimeMillis() / 1000) + "}";
     }
 
     @Override
@@ -56,29 +56,21 @@ public class BitgetSpotDepthHandler implements ExchangeWebSocketHandler {
 
     @Override
     public void onMessage(String message) {
-        if (message == null || "pong".equals(message)) return;
         try {
             JsonNode root = om.readTree(message);
-            if (root.has("event")) {
-                String ev = root.path("event").asText("");
-                if ("error".equals(ev) || "pong".equals(ev)) return;
-            }
-            JsonNode arg = root.path("arg");
-            if (arg.isMissingNode()) return;
-            String channel = arg.path("channel").asText("");
-            if (!"books5".equals(channel)) return;
+            String op = root.path("op").asText("");
+            if ("ping".equals(op)) return;
+            if (!"depth_book1".equals(root.path("ch").asText(""))) return;
+            String symbol = root.path("symbol").asText("");
             JsonNode data = root.path("data");
-            if (!data.isArray() || data.isEmpty()) return;
-            for (JsonNode item : data) {
-                String instId = item.path("instId").asText("");
-                BigDecimal bid1 = parseBest(item.path("bids"), 0);
-                BigDecimal ask1 = parseBest(item.path("asks"), 0);
-                if (bid1 != null && ask1 != null) {
-                    cache.updateBidAsk("bitget", instId, bid1, ask1);
-                }
+            if (data.isMissingNode()) return;
+            BigDecimal bid1 = parseBest(data.path("b"), 0);
+            BigDecimal ask1 = parseBest(data.path("a"), 0);
+            if (bid1 != null && ask1 != null) {
+                cache.updateBidAsk("bitunix", symbol, bid1, ask1);
             }
         } catch (Exception e) {
-            log.warn("Bitget books5 parse error: {}", e.getMessage());
+            log.warn("Bitunix depth parse error: {}", e.getMessage());
         }
     }
 

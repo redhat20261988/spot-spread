@@ -19,7 +19,8 @@ import java.util.Map;
 public class ExchangePriceController {
 
     private static final List<String> EXCHANGES = List.of(
-            "binance", "bitfinex", "coinex", "okx", "bybit", "gateio", "bitget", "lbank", "whitebit"
+            "binance", "bitfinex", "coinex", "okx", "bybit", "gateio", "bitget", "lbank", "whitebit",
+            "bitunix", "cryptocom"
     );
     private static final String DEFAULT_SYMBOL = "BTCUSDT";
 

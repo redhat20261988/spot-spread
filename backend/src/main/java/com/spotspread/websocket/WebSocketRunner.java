@@ -38,6 +38,8 @@ public class WebSocketRunner {
             clients.add(new BitgetSpotDepthHandler(cache).createClient());
             clients.add(new LBankSpotDepthHandler(cache).createClient());
             clients.add(new WhiteBitSpotDepthHandler(cache).createClient());
+            clients.add(new BitunixSpotDepthHandler(cache).createClient());
+            clients.add(new CryptoComSpotDepthHandler(cache).createClient());
             for (ManagedWebSocket client : clients) client.connect();
             log.info("Started {} spot depth WebSocket connections", clients.size());
         } catch (Exception e) {
