@@ -23,3 +23,6 @@ influxdb:
   org: ${INFLUXDB_ORG:spot-spread}
   bucket: ${INFLUXDB_BUCKET:spot-spread}
   enabled: ${INFLUXDB_ENABLED:true}
+
+arbitrage:
+  profit-mode: ${ARBITRAGE_PROFIT_MODE:taker-taker}  # 可选: max-profit, taker-maker, taker-taker
