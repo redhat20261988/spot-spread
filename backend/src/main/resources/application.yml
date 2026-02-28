@@ -25,4 +25,4 @@ influxdb:
   enabled: ${INFLUXDB_ENABLED:true}
 
 arbitrage:
-  profit-mode: ${ARBITRAGE_PROFIT_MODE:taker-taker}  # 可选: max-profit, taker-maker, taker-taker
+  profit-mode: ${ARBITRAGE_PROFIT_MODE:taker-maker}  # 可选: max-profit, taker-maker, taker-taker
